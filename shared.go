@@ -89,6 +89,7 @@ type MessageToCoordinator struct {
 	AllowedRed  decomp.Edges   // for logk search, this maps each entry of comp to one of allowed
 	Conns       [][]int        // for logk search, this maps each entry of comp to one of Conns
 	OldConn     []int          // for logk
+	Decomp      decomp.Decomp  // for returning the result
 }
 
 func (m MessageToCoordinator) ToBytes() []byte {
