@@ -2,7 +2,6 @@ module github.com/cem-okulmus/CTDecomp
 
 go 1.21.1
 
-replace github.com/cem-okulmus/CTDecomp/lib => ./
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
