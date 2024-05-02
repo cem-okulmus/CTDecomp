@@ -34,7 +34,10 @@ func attachingSubtrees(subtreeAbove decomp.Node, subtreeBelow decomp.Node, conne
 	return *leaf
 }
 
-func SearchBagsLogK(gen decomp.Generator, input, comp decomp.Graph, toCoord chan MessageToCoordinator, found chan MessageToCTD, workerID string, countComps int, Conn []int, allowedFull decomp.Edges, width int) {
+func SearchConstraintLogK(gen decomp.Generator, input, comp decomp.Graph, toCoord chan MessageToCoordinator,
+	found chan MessageToCTD, workerID string, countComps int, Conn []int, allowedFull decomp.Edges,
+	width int, constraint Constraint,
+) {
 	VerticesH := append(comp.Vertices())
 
 	allowed := decomp.FilterVertices(allowedFull, VerticesH)
@@ -58,7 +61,9 @@ CHILD:
 		check, compsε, _ := pred.CheckOut(&comp, &childλ, 2, Vertices)
 		gen.Confirm()
 
-		if !check {
+		childχ := decomp.Inter(childλ.Vertices(), VerticesH)
+
+		if !check || !constraint.Check(input,&decomp.Node{Bag: childχ, Cover: childλ},nil) {
 			continue CHILD
 		}
 
@@ -66,8 +71,6 @@ CHILD:
 		if Subset(Conn, childλ.Vertices()) {
 			// log.Printf("Child-Root cover chosen: %v of %v \n", childλ, H)
 			// log.Printf("Comps of Child-Root: %v\n", comps_c)
-
-			childχ := decomp.Inter(childλ.Vertices(), VerticesH)
 
 			maps.Clear(Vertices)
 			globalComps, _, isolated := input.GetComponents(childλ, Vertices)
@@ -226,90 +229,90 @@ func sendComponents(localComps, globalComps []decomp.Graph, Conns [][]int, allow
 	}
 }
 
-func SearchBagsBalgo(gen decomp.Generator, input, comp decomp.Graph, toCoord chan MessageToCoordinator, found chan MessageToCTD, workerID string, countComps int) {
-	for gen.HasNext() {
+// func SearchBagsBalgo(gen decomp.Generator, input, comp decomp.Graph, toCoord chan MessageToCoordinator, found chan MessageToCTD, workerID string, countComps int) {
+// 	for gen.HasNext() {
 
-		j := gen.GetNext()
+// 		j := gen.GetNext()
 
-		sep := decomp.GetSubset(input.Edges, j)
-		// var sepSub *decomp.SepSub
-		// SubEdgeSearchEnded := false
+// 		sep := decomp.GetSubset(input.Edges, j)
+// 		// var sepSub *decomp.SepSub
+// 		// SubEdgeSearchEnded := false
 
-		// for !SubEdgeSearchEnded {
-		// 	if sepSub != nil {
-		// 		if sepSub.HasNext() {
-		// 			sep = sepSub.GetCurrent()
-		// 			fmt.Println("looking at subsep", sep)
-		// 		} else {
-		// 			fmt.Println("done")
-		// 			SubEdgeSearchEnded = true
-		// 			continue
-		// 		}
-		// 	}
+// 		// for !SubEdgeSearchEnded {
+// 		// 	if sepSub != nil {
+// 		// 		if sepSub.HasNext() {
+// 		// 			sep = sepSub.GetCurrent()
+// 		// 			fmt.Println("looking at subsep", sep)
+// 		// 		} else {
+// 		// 			fmt.Println("done")
+// 		// 			SubEdgeSearchEnded = true
+// 		// 			continue
+// 		// 		}
+// 		// 	}
 
-		pred := decomp.BalancedCheck{}
+// 		pred := decomp.BalancedCheck{}
 
-		Vertices := make(map[int]*disjoint.Element)
-		check, comps, _ := pred.CheckOut(&comp, &sep, 2, Vertices)
+// 		Vertices := make(map[int]*disjoint.Element)
+// 		check, comps, _ := pred.CheckOut(&comp, &sep, 2, Vertices)
 
-		if check {
-			gen.Found() // cache result
-			// fmt.Println("Found sep ", sep)
-			// if sepSub == nil {
-			// 	sepSub = decomp.GetSepSub(globalGraph.Edges, sep, globalWidth)
-			// }
+// 		if check && bagConstraint.Check(inputGraph, childχ) {
+// 			gen.Found() // cache result
+// 			// fmt.Println("Found sep ", sep)
+// 			// if sepSub == nil {
+// 			// 	sepSub = decomp.GetSepSub(globalGraph.Edges, sep, globalWidth)
+// 			// }
 
-			// currentCompVert := currentComp.Vertices()
+// 			// currentCompVert := currentComp.Vertices()
 
-			// recompute components based on the input hypergraph
-			sepReduced := decomp.CutEdges(sep, comp.Vertices())
+// 			// recompute components based on the input hypergraph
+// 			sepReduced := decomp.CutEdges(sep, comp.Vertices())
 
-			Vertices2 := make(map[int]*disjoint.Element)
-			globalComps, _, isolated := input.GetComponents(sepReduced, Vertices2)
+// 			Vertices2 := make(map[int]*disjoint.Element)
+// 			globalComps, _, isolated := input.GetComponents(sepReduced, Vertices2)
 
-			// fmt.Println("sending ", sep, " comps to coord")
-			// send the newly found components to Coordinator
-			toCoord <- MessageToCoordinator{
-				Mtype:  SendComponent,
-				Id:     workerID,
-				Search: BalancedGoSearch,
-				Count:  countComps,
-				Comp:   comps,
-				CTD:    false,
-			}
+// 			// fmt.Println("sending ", sep, " comps to coord")
+// 			// send the newly found components to Coordinator
+// 			toCoord <- MessageToCoordinator{
+// 				Mtype:  SendComponent,
+// 				Id:     workerID,
+// 				Search: BalancedGoSearch,
+// 				Count:  countComps,
+// 				Comp:   comps,
+// 				CTD:    false,
+// 			}
 
-			// send the final blocks to CTDCheck
-			var blocks []Block
-			for i := range globalComps {
-				conn := decomp.Inter(globalComps[i].Vertices(), sep.Vertices())
+// 			// send the final blocks to CTDCheck
+// 			var blocks []Block
+// 			for i := range globalComps {
+// 				conn := decomp.Inter(globalComps[i].Vertices(), sep.Vertices())
 
-				treeComp := decomp.NewEdges(append(globalComps[i].Edges.Slice(), isolated...))
+// 				treeComp := decomp.NewEdges(append(globalComps[i].Edges.Slice(), isolated...))
 
-				out := CreateBlock(sep, globalComps[i].Edges, treeComp, comp.Edges, conn)
-				blocks = append(blocks, out)
-				// fmt.Println("Sending block: \n", out)
-				// countComps++
-				// found <- out
-			}
-			found <- MessageToCTD{
-				Mtype:  SendBlock,
-				Blocks: blocks,
-			}
+// 				out := CreateBlock(sep, globalComps[i].Edges, treeComp, comp.Edges, conn)
+// 				blocks = append(blocks, out)
+// 				// fmt.Println("Sending block: \n", out)
+// 				// countComps++
+// 				// found <- out
+// 			}
+// 			found <- MessageToCTD{
+// 				Mtype:  SendBlock,
+// 				Blocks: blocks,
+// 			}
 
-			// log.Println("Worker", index, "won, found: ", j)
-			// fmt.Println("Worker ", workerID, " found sep ", sep, " for H ", comp)
+// 			// log.Println("Worker", index, "won, found: ", j)
+// 			// fmt.Println("Worker ", workerID, " found sep ", sep, " for H ", comp)
 
-			// *finished = true
-			// return
-		}
-		// 	else {
-		// 		if sepSub == nil {
-		// 			SubEdgeSearchEnded = true // skip subedge search if not balanced
-		// 		}
+// 			// *finished = true
+// 			// return
+// 		}
+// 		// 	else {
+// 		// 		if sepSub == nil {
+// 		// 			SubEdgeSearchEnded = true // skip subedge search if not balanced
+// 		// 		}
 
-		// 	}
-		// }
+// 		// 	}
+// 		// }
 
-		gen.Confirm()
-	}
-}
+// 		gen.Confirm()
+// 	}
+// }

@@ -16,6 +16,9 @@ import (
 	"github.com/cem-okulmus/disjoint"
 )
 
+// CTDCheckRoutine is the function implementing the functionality of the CTD Checker.
+// It takes as input all the neeeded information, the graph, the width, and pipelines 
+// to ``talk'' to coordinator and receive messages from other routines
 func CTDCheckRoutine(id int, input decomp.Graph, width int, messages chan lib.MessageToCTD,
 	toCoord chan lib.MessageToCoordinator,
 ) {
@@ -53,10 +56,7 @@ outer:
 		switch m.Mtype {
 		case lib.SendBlock:
 			for i := range m.Blocks {
-				// fmt.Println("ctdCheck got new block ", out)
-				// var blockOut BlockOut
-				// blockOut.FromBlock(m.Blocks[i])
-				// receivedBlocks = append(receivedBlocks, blockOut) // logging the blocks as they come in
+
 				node := lib.CreateNode(m.Blocks[i])
 				if node.Satisfied {
 					fmt.Println("CTDChecking: New node is triv. satisfied!")
@@ -119,9 +119,14 @@ outer:
 	// 	fmt.Println("CTDChecking: Failed to find a decomp!")
 	// }
 
-	// fmt.Println("CTDChecking: Found a decomposition in the OADG?: ", odag.IsSatisfied(), "num indexed nodes", len(odag.Nodes))
+	// fmt.Println("CTDChecking: Found a decomposition in the OADG?: ",
+	// odag.IsSatisfied(), "num indexed nodes", len(odag.Nodes))
 }
 
+
+// workerRoutine is a function that implements the worker routine. It takes as input all the 
+// needed information, such as the graph, the width and pipelines to interact with coordinator
+// CTDCheck and to receive information from coordinator
 func workerRoutine(id int, input decomp.Graph, width int, messages chan lib.CoordinatorToWorker,
 	toCoord chan lib.MessageToCoordinator, toCTD chan lib.MessageToCTD,
 ) {
@@ -188,7 +193,7 @@ func workerRoutine(id int, input decomp.Graph, width int, messages chan lib.Coor
 			}
 		}
 		if !foundID {
-			log.Println(workerID, ": couldn't find workerID in pool", workerID, " ", message.Workers)
+			log.Println(workerID, ": nout found workerID in pool", workerID, " ", message.Workers)
 		}
 
 		// fmt.Println("Started work on new comp: ", comp)
@@ -205,11 +210,11 @@ func workerRoutine(id int, input decomp.Graph, width int, messages chan lib.Coor
 		// * found lib.MessageToCTD
 
 		switch search {
-		case lib.BalancedGoSearch:
-			lib.SearchBagsBalgo(gen, input, comp.Edges, toCoord, found, workerID, countComps)
+		// case lib.BalancedGoSearch:
+		// 	lib.SearchBagsBalgo(gen, input, comp.Edges, toCoord, found, workerID, countComps)
 		case lib.LogKSearch:
-			lib.SearchBagsLogK(gen, input, comp.Edges, toCoord, found, workerID, countComps,
-				comp.Conn, comp.Allowed, width)
+			lib.SearchConstraintLogK(gen, input, comp.Edges, toCoord, found, workerID, countComps,
+				comp.Conn, comp.Allowed, width, lib.TopConstraint{})
 		}
 
 		// sent Idle message to coordinator
@@ -428,7 +433,7 @@ func main() {
 
 	}
 
-	// fmt.Println("Coordinator: Registered all needed units, starting the overall search process.")
+	// fmt.Println("Coordinator: Registered all needed units, start the overall search process.")
 
 	// message2 := lib.CoordinatorToWorker{
 	// 	Mtype: lib.Initialise,
@@ -508,7 +513,7 @@ compSearch:
 		} else {
 			// Generators :=
 
-			fmt.Println("Coordinator: Starting new search for balanced sep in comp ", current.Edges)
+			fmt.Println("Coordinator: Start new search for balanced sep in comp ", current.Edges)
 
 			toWorker <- lib.CoordinatorToWorker{
 				Mtype:   lib.SearchGraph,
@@ -550,7 +555,7 @@ compSearch:
 
 				// 	break compSearch
 				case lib.SendComponent:
-					fmt.Println("Coordinator: Adding new stuff to compHeap, old len:", compHeap.Len())
+					fmt.Println("Coordinator: Adding stuff to compHeap, old len:", compHeap.Len())
 
 					if m.Search == lib.BalancedGoSearch {
 						for i := range m.Comp {
